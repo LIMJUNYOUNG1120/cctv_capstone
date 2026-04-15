@@ -15,13 +15,22 @@ set(ONNXRUNTIME_DIR "C:/cctvcapstone/onnxruntime/lib/onnxruntime-win-x64-gpu-1.2
 include_directories(${ONNXRUNTIME_DIR}/include)
 link_directories(${ONNXRUNTIME_DIR}/lib)
 
-# CUDA
-set(CUDA_DIR "C:/cctvcapstone/cuda")
-include_directories(${CUDA_DIR}/include)
-link_directories(${CUDA_DIR}/lib/x64)
+# Eigen3
+set(EIGEN3_DIR "C:/cctvcapstone/eigen")
+include_directories(${EIGEN3_DIR})
 
-# 실행 파일
-add_executable(cctv_capstone main.cpp)
+# DeepSORT
+include_directories(${CMAKE_SOURCE_DIR}/deepsort)
+
+# 소스 파일
+add_executable(cctv_capstone
+    main.cpp
+    deepsort/kalman_filter.cpp
+    deepsort/hungarian.cpp
+    deepsort/track.cpp
+    deepsort/tracker.cpp
+)
+
 target_link_libraries(cctv_capstone
     ${OpenCV_LIBS}
     onnxruntime

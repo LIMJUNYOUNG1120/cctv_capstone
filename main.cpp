@@ -3,6 +3,7 @@
 #include <chrono>
 #include <opencv2/opencv.hpp>
 #include <onnxruntime_cxx_api.h>
+#include "deepsort/tracker.h"
 
 int main() {
     // ── 모델 로드 ──────────────────────────────
@@ -14,7 +15,11 @@ int main() {
         sessionOptions);
     std::cout << "Model load success!" << std::endl;
 
-    // ── 영상 파일 로드 ─────────────────────────
+    // ── 트래커 초기화 ──────────────────────────
+    Tracker tracker("C:/cctvcapstone/osnet.onnx");
+    std::cout << "Tracker initialized!" << std::endl;
+
+    // ── 영상 로드 ──────────────────────────────
     cv::VideoCapture cap("C:\\cctvcapstone\\frames\\frame_%04d.jpg");
     if (!cap.isOpened()) {
         std::cout << "Video open failed" << std::endl;
@@ -22,9 +27,6 @@ int main() {
         return -1;
     }
     std::cout << "Video open success!" << std::endl;
-    std::cout << "FPS: " << cap.get(cv::CAP_PROP_FPS) << std::endl;
-    std::cout << "Resolution: " << cap.get(cv::CAP_PROP_FRAME_WIDTH)
-        << "x" << cap.get(cv::CAP_PROP_FRAME_HEIGHT) << std::endl;
 
     // ── 메인 루프 ──────────────────────────────
     cv::Mat frame;
@@ -43,14 +45,11 @@ int main() {
 
         // HWC → CHW 변환
         std::vector<float> inputData(3 * 640 * 640);
-        for (int c = 0; c < 3; c++) {
-            for (int h = 0; h < 640; h++) {
-                for (int w = 0; w < 640; w++) {
+        for (int c = 0; c < 3; c++)
+            for (int h = 0; h < 640; h++)
+                for (int w = 0; w < 640; w++)
                     inputData[c * 640 * 640 + h * 640 + w] =
-                        rgb.at<cv::Vec3f>(h, w)[c];
-                }
-            }
-        }
+                    rgb.at<cv::Vec3f>(h, w)[c];
 
         // ── 입력 텐서 준비 ─────────────────────
         std::vector<int64_t> inputShape = { 1, 3, 640, 640 };
@@ -62,7 +61,7 @@ int main() {
             inputData.data(), inputData.size(),
             inputShape.data(), inputShape.size());
 
-        // ── 추론 실행 + 속도 측정 ──────────────
+        // ── 추론 실행 ──────────────────────────
         const char* inputName = "images";
         const char* outputName = "output0";
         auto start = std::chrono::high_resolution_clock::now();
@@ -73,7 +72,6 @@ int main() {
         auto end = std::chrono::high_resolution_clock::now();
         float ms = std::chrono::duration<float, std::milli>
             (end - start).count();
-        std::cout << "Inference: " << ms << "ms" << std::endl;
 
         // ── 출력 파싱 ──────────────────────────
         float* output = outputTensors[0]
@@ -108,23 +106,40 @@ int main() {
         // ── NMS 적용 ───────────────────────────
         std::vector<int> indices;
         cv::dnn::NMSBoxes(boxes, scores, 0.3f, 0.4f, indices);
-        std::cout << "Detected: " << indices.size() << " person(s)" << std::endl;
 
-        // ── 박스 그리기 ────────────────────────
-        for (int idx : indices) {
-            cv::rectangle(frame, boxes[idx],
-                cv::Scalar(0, 255, 0), 2);
-            std::string label = "person "
-                + std::to_string((int)(scores[idx] * 100)) + "%";
+        std::vector<cv::Rect> finalBoxes;
+        for (int idx : indices)
+            finalBoxes.push_back(boxes[idx]);
+
+        // ── DeepSORT 업데이트 ──────────────────
+        tracker.update(finalBoxes, frame);
+        auto confirmedTracks = tracker.getConfirmedTracks();
+
+        // ── 결과 표시 ──────────────────────────
+        for (auto* track : confirmedTracks) {
+            cv::Rect rect = track->getRect();
+
+            // 범위 체크
+            rect.x = std::max(0, rect.x);
+            rect.y = std::max(0, rect.y);
+            rect.width = std::min(rect.width, frame.cols - rect.x);
+            rect.height = std::min(rect.height, frame.rows - rect.y);
+            if (rect.width <= 0 || rect.height <= 0) continue;
+
+            cv::rectangle(frame, rect, cv::Scalar(0, 255, 0), 2);
+            std::string label = "ID:" + std::to_string(track->getId());
             cv::putText(frame, label,
-                cv::Point(boxes[idx].x, boxes[idx].y - 10),
-                cv::FONT_HERSHEY_SIMPLEX, 0.5,
-                cv::Scalar(0, 255, 0), 1);
+                cv::Point(rect.x, rect.y - 10),
+                cv::FONT_HERSHEY_SIMPLEX, 0.6,
+                cv::Scalar(0, 255, 0), 2);
         }
 
-        // ── 화면 출력 ──────────────────────────
-        cv::imshow("CCTV Detection", frame);
-        if (cv::waitKey(1) == 27) break; // ESC 종료
+        std::cout << "Inference: " << ms << "ms"
+            << " | Tracked: " << confirmedTracks.size()
+            << " person(s)" << std::endl;
+
+        cv::imshow("CCTV Detection + Tracking", frame);
+        if (cv::waitKey(1) == 27) break;
     }
 
     cap.release();

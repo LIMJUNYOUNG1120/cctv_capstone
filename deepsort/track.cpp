@@ -3,7 +3,7 @@
 Track::Track(const Eigen::VectorXd& bbox, int id,
     const std::vector<float>& feature)
     : id_(id), state_(Tentative), hits_(1), misses_(0),
-    maxMisses_(5), minHits_(3), feature_(feature) {
+    maxMisses_(15), minHits_(3), feature_(feature) {
     kf_.init(bbox);
 }
 
@@ -16,7 +16,7 @@ void Track::update(const Eigen::VectorXd& bbox,
     kf_.update(bbox);
     hits_++;
     misses_ = 0;
-    // Æ¯Â¡ º¤ÅÍ ¾÷µ¥ÀÌÆ® (ÀÌµ¿ Æò±Õ)
+    // Æ¯Â¡ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® (ï¿½Ìµï¿½ ï¿½ï¿½ï¿½)
     for (int i = 0; i < (int)feature_.size(); i++)
         feature_[i] = 0.9f * feature_[i] + 0.1f * feature[i];
     if (state_ == Tentative && hits_ >= minHits_)

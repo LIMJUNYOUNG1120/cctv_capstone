@@ -13,7 +13,7 @@ Tracker::Tracker(const std::string& reidModelPath)
 std::vector<float> Tracker::extractFeature(
     const cv::Rect& box, const cv::Mat& frame) {
 
-    // ¹Ú½º ¹üÀ§ Ã¼Å©
+    // ï¿½Ú½ï¿½ ï¿½ï¿½ï¿½ï¿½ Ã¼Å©
     cv::Rect safeBox = box;
     safeBox.x = std::max(0, safeBox.x);
     safeBox.y = std::max(0, safeBox.y);
@@ -22,20 +22,20 @@ std::vector<float> Tracker::extractFeature(
     if (safeBox.width <= 0 || safeBox.height <= 0)
         return std::vector<float>(512, 0.0f);
 
-    // Å©·Ó ¹× ÀüÃ³¸®
+    // Å©ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½Ã³ï¿½ï¿½
     cv::Mat crop = frame(safeBox);
     cv::Mat resized, rgb;
     cv::resize(crop, resized, cv::Size(128, 256));
     cv::cvtColor(resized, rgb, cv::COLOR_BGR2RGB);
     rgb.convertTo(rgb, CV_32F, 1.0 / 255.0);
 
-    // Á¤±ÔÈ­
+    // ï¿½ï¿½ï¿½ï¿½È­
     cv::Scalar mean(0.485, 0.456, 0.406);
     cv::Scalar std(0.229, 0.224, 0.225);
     rgb -= mean;
     rgb /= std;
 
-    // HWC ¡æ CHW
+    // HWC ï¿½ï¿½ CHW
     std::vector<float> inputData(3 * 256 * 128);
     for (int c = 0; c < 3; c++)
         for (int h = 0; h < 256; h++)
@@ -43,7 +43,7 @@ std::vector<float> Tracker::extractFeature(
                 inputData[c * 256 * 128 + h * 128 + w] =
                 rgb.at<cv::Vec3f>(h, w)[c];
 
-    // Ãß·Ð
+    // ï¿½ß·ï¿½
     std::vector<int64_t> inputShape = { 1, 3, 256, 128 };
     Ort::MemoryInfo memInfo =
         Ort::MemoryInfo::CreateCpu(
@@ -68,7 +68,7 @@ std::vector<float> Tracker::extractFeature(
 
     std::vector<float> feature(output, output + featureSize);
 
-    // L2 Á¤±ÔÈ­
+    // L2 ï¿½ï¿½ï¿½ï¿½È­
     float norm = 0.0f;
     for (float v : feature) norm += v * v;
     norm = std::sqrt(norm);
@@ -117,8 +117,8 @@ std::vector<std::vector<double>> Tracker::costMatrix(
             float iouVal = iou(tracks_[t].getRect(), detections[d]);
             float reidVal = cosineSimilarity(
                 tracks_[t].getFeature(), features[d]);
-            // IOU 40% + Re-ID 60% °¡ÁßÄ¡
-            matrix[t][d] = 1.0 - (0.6f * iouVal + 0.4f * reidVal);
+            // IOU 40% + Re-ID 60% ï¿½ï¿½ï¿½ï¿½Ä¡
+            matrix[t][d] = 1.0 - (0.1f * iouVal + 0.9f * reidVal);
         }
     }
     return matrix;
@@ -128,11 +128,11 @@ void Tracker::update(
     const std::vector<cv::Rect>& detections,
     const cv::Mat& frame) {
 
-    // ¸ðµç Æ®·¢ ¿¹Ãø
+    // ï¿½ï¿½ï¿½ Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     for (auto& track : tracks_)
         track.predict();
 
-    // Å½ÁöµÈ »ç¶÷ Re-ID Æ¯Â¡ ÃßÃâ
+    // Å½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ Re-ID Æ¯Â¡ ï¿½ï¿½ï¿½ï¿½
     std::vector<std::vector<float>> features;
     for (auto& det : detections)
         features.push_back(extractFeature(det, frame));
@@ -149,7 +149,7 @@ void Tracker::update(
         return;
     }
 
-    // Çë°¡¸®¾È ¾Ë°í¸®ÁòÀ¸·Î ¸ÅÄª
+    // ï¿½ë°¡ï¿½ï¿½ï¿½ï¿½ ï¿½Ë°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Äª
     HungarianAlgorithm hungarian;
     std::vector<int> assignment;
     auto matrix = costMatrix(detections, features);
@@ -174,7 +174,7 @@ void Tracker::update(
         }
     }
 
-    // ¸ÅÄª ¾È µÈ Å½Áö ¡æ »õ Æ®·¢ »ý¼º
+    // ï¿½ï¿½Äª ï¿½ï¿½ ï¿½ï¿½ Å½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     for (int d = 0; d < (int)detections.size(); d++) {
         if (!detMatched[d]) {
             Eigen::VectorXd bbox(4);
@@ -186,7 +186,7 @@ void Tracker::update(
         }
     }
 
-    // »èÁ¦µÈ Æ®·¢ Á¦°Å
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     tracks_.erase(
         std::remove_if(tracks_.begin(), tracks_.end(),
             [](const Track& t) { return t.isDeleted(); }),

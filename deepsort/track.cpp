@@ -1,9 +1,9 @@
 #include "track.h"
 
 Track::Track(const Eigen::VectorXd& bbox, int id,
-    const std::vector<float>& feature)
+    const PersonFeatures& features)
     : id_(id), state_(Tentative), hits_(1), misses_(0),
-    maxMisses_(15), minHits_(3), feature_(feature) {
+    maxMisses_(5), minHits_(3), features_(features) {
     kf_.init(bbox);
 }
 
@@ -12,13 +12,34 @@ void Track::predict() {
 }
 
 void Track::update(const Eigen::VectorXd& bbox,
-    const std::vector<float>& feature) {
+    const PersonFeatures& features) {
     kf_.update(bbox);
     hits_++;
     misses_ = 0;
-    // Ư¡ ���� ������Ʈ (�̵� ���)
-    for (int i = 0; i < (int)feature_.size(); i++)
-        feature_[i] = 0.9f * feature_[i] + 0.1f * feature[i];
+
+    if (!features_.osnetFeature.empty() &&
+        !features.osnetFeature.empty()) {
+        for (int i = 0; i < (int)features_.osnetFeature.size(); i++)
+            features_.osnetFeature[i] =
+            0.9f * features_.osnetFeature[i] +
+            0.1f * features.osnetFeature[i];
+    }
+
+    if (!features.gender.empty())
+        features_.gender = features.gender;
+    if (!features.upperType.empty())
+        features_.upperType = features.upperType;
+    if (!features.lowerType.empty())
+        features_.lowerType = features.lowerType;
+    if (!features.upperColor.empty())
+        features_.upperColor = features.upperColor;
+    if (!features.lowerColor.empty())
+        features_.lowerColor = features.lowerColor;
+    if (features.heightRatio > 0)
+        features_.heightRatio = features.heightRatio;
+    if (features.bodyRatio > 0)
+        features_.bodyRatio = features.bodyRatio;
+
     if (state_ == Tentative && hits_ >= minHits_)
         state_ = Confirmed;
 }
@@ -50,6 +71,6 @@ int Track::getId() const {
     return id_;
 }
 
-const std::vector<float>& Track::getFeature() const {
-    return feature_;
+const PersonFeatures& Track::getFeatures() const {
+    return features_;
 }

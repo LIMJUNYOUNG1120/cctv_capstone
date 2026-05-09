@@ -2,11 +2,15 @@
 #include "track.h"
 #include "hungarian.h"
 #include <vector>
+#include <string>
 #include <onnxruntime_cxx_api.h>
 
 class Tracker {
 public:
-    Tracker(const std::string& reidModelPath);
+    Tracker(const std::string& osnetPath,
+        const std::string& clothingPath);
+    ~Tracker();
+
     void update(const std::vector<cv::Rect>& detections,
         const cv::Mat& frame);
     std::vector<Track*> getConfirmedTracks();
@@ -14,21 +18,34 @@ public:
 private:
     std::vector<Track> tracks_;
     int nextId_;
-    float iouThreshold_;
-    float reidThreshold_;
+    int frameCount_;
+    int featureUpdateInterval_;
+    float matchThreshold_;
 
-    // Re-ID ¸ðµ¨
+    // ONNX Runtime
     Ort::Env env_;
-    Ort::Session* reidSession_;
     Ort::SessionOptions sessionOptions_;
+    Ort::Session* osnetSession_;
+    Ort::Session* clothingSession_;
 
-    float iou(const cv::Rect& a, const cv::Rect& b);
-    std::vector<float> extractFeature(
+    // Æ¯Â¡ ÃßÃâ
+    std::vector<float> extractOsnet(
         const cv::Rect& box, const cv::Mat& frame);
+    PersonFeatures extractFeatures(
+        const cv::Rect& box, const cv::Mat& frame);
+
+    // »ö»ó ºÐ·ù
+    std::string classifyColor(
+        const cv::Mat& region);
+
+    // ¸ÅÄª
+    float computeSimilarity(
+        const PersonFeatures& a,
+        const PersonFeatures& b);
     float cosineSimilarity(
         const std::vector<float>& a,
         const std::vector<float>& b);
     std::vector<std::vector<double>> costMatrix(
         const std::vector<cv::Rect>& detections,
-        const std::vector<std::vector<float>>& features);
+        const std::vector<PersonFeatures>& features);
 };

@@ -18,33 +18,24 @@ public:
 private:
     std::vector<Track> tracks_;
     int nextId_;
+    float matchThreshold_;
     int frameCount_;
     int featureUpdateInterval_;
-    float matchThreshold_;
 
-    // ONNX Runtime
     Ort::Env env_;
     Ort::SessionOptions sessionOptions_;
     Ort::Session* osnetSession_;
     Ort::Session* clothingSession_;
 
-    // Æ¯Â¡ ÃßÃâ
     std::vector<float> extractOsnet(
         const cv::Rect& box, const cv::Mat& frame);
     PersonFeatures extractFeatures(
         const cv::Rect& box, const cv::Mat& frame);
-
-    // »ö»ó ºÐ·ù
-    std::string classifyColor(
-        const cv::Mat& region);
-
-    // ¸ÅÄª
+    std::string classifyColor(const cv::Mat& region);
     float computeSimilarity(
-        const PersonFeatures& a,
-        const PersonFeatures& b);
+        const PersonFeatures& a, const PersonFeatures& b);
     float cosineSimilarity(
-        const std::vector<float>& a,
-        const std::vector<float>& b);
+        const std::vector<float>& a, const std::vector<float>& b);
     std::vector<std::vector<double>> costMatrix(
         const std::vector<cv::Rect>& detections,
         const std::vector<PersonFeatures>& features);

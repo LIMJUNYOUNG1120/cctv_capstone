@@ -34,6 +34,7 @@ add_executable(cctv_capstone
 target_link_libraries(cctv_capstone
     ${OpenCV_LIBS}
     onnxruntime
+    ws2_32
 )
 
 add_executable(calibration calibration.cpp)
